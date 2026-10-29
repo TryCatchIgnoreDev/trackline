@@ -1,0 +1,20 @@
+# Trackline engine configuration (managed by the Studio UI)
+model: yolo11n.pt
+video: person-bicycle-car-detection.mp4
+conf: 0.3
+iou: 0.5
+imgsz: 640
+classes: []
+tracker: botsort
+anchor: center
+realtime: false
+lines:
+- id: v1
+  name: mid-v
+  p1: [0.5, 0.0]
+  p2: [0.5, 1.0]
+- id: h1
+  name: mid-h
+  p1: [0.0, 0.6]
+  p2: [1.0, 0.6]
+git_autocommit: false
