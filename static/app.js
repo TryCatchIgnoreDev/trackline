@@ -61,6 +61,7 @@ function setTab(name) {
   $$(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "studio") requestAnimationFrame(resizeCanvas);
   if (name === "live") loadLiveStatus();
+  history.replaceState(null, "", `#${name}`);
   syncStream();
 }
 $$(".tab-btn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
@@ -703,4 +704,6 @@ $("#live-uri").addEventListener("input", (e) => {
     connectWS();
     status("ready", "ok");
   } catch (e) { status(`boot failed: ${e.message}`, "err"); }
+  const h = location.hash.replace("#", "");
+  if (["studio", "execute", "live"].includes(h)) setTab(h);
 })();
