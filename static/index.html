@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trackline</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2309090b'/><path d='M2 13 L14 3' stroke='%23fafafa' stroke-width='2'/></svg>">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="mark"></span>TRACKLINE<span class="ver" id="ver">v0.1</span></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="studio" role="tab"><span class="k">01</span>STUDIO</button>
+    <button class="tab-btn" data-tab="execute" role="tab"><span class="k">02</span>EXECUTE</button>
+    <button class="tab-btn" data-tab="live" role="tab"><span class="k">03</span>LIVE<span class="wip">WIP</span></button>
+  </nav>
+  <div class="sysbar">
+    <span>MODEL <b id="sb-model">-</b></span>
+    <span>DEVICE <b id="sb-device">-</b></span>
+    <span>ENGINE <b id="sb-engine">idle</b></span>
+    <span class="ws"><i id="sb-ws" class="dot"></i>WS</span>
+  </div>
+</header>
+
+<main>
+  <!-- ============================ STUDIO ============================ -->
+  <section class="tab-pane active" id="tab-studio">
+    <div class="stage">
+      <div class="stage-head">
+        <span>CANVAS</span>
+        <span class="mono dim" id="src-meta">no source</span>
+        <span class="spacer"></span>
+        <span class="mono dim hint">drag: draw line &middot; drag handle: edit &middot; del: remove &middot; &larr;/&rarr;: step</span>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <div class="empty" id="canvas-empty">SELECT A VIDEO SOURCE</div>
+      </div>
+      <div class="scrubber">
+        <button class="btn icon" data-step="-10" title="-10 frames">&laquo;</button>
+        <button class="btn icon" data-step="-1" title="-1 frame">&lsaquo;</button>
+        <input type="range" id="scrub" min="0" max="0" value="0" step="1" disabled>
+        <button class="btn icon" data-step="1" title="+1 frame">&rsaquo;</button>
+        <button class="btn icon" data-step="10" title="+10 frames">&raquo;</button>
+        <span class="mono readout" id="scrub-readout">0 / 0</span>
+        <span class="mono readout dim" id="scrub-time">00:00.000</span>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-head">SOURCE <button class="btn tiny" id="btn-videos-refresh" title="rescan /videos">RESCAN</button></div>
+        <div class="row">
+          <select id="video-select"><option value="">-- /videos --</option></select>
+          <label class="btn" title="upload into /videos">UPLOAD<input type="file" id="video-upload" accept="video/*" hidden></label>
+        </div>
+        <div class="progress thin hidden" id="upload-progress"><i></i></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">MODEL <button class="btn tiny" id="btn-models-refresh" title="rescan /models">RESCAN</button></div>
+        <select id="model-select"><option value="">-- /models/*.pt --</option></select>
+        <div class="kv mono" id="model-info">no weights loaded</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">ZONES <span class="count mono" id="zone-count">0</span>
+          <button class="btn tiny" id="btn-zones-clear">CLEAR</button></div>
+        <div id="zone-list" class="zone-list"><div class="dim mono small">no lines - drag on the canvas</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">PARAMETERS</div>
+        <label class="field"><span>CONFIDENCE</span>
+          <input type="range" id="p-conf" min="0.01" max="1" step="0.01"><b class="mono" id="v-conf"></b></label>
+        <label class="field"><span>IOU (NMS)</span>
+          <input type="range" id="p-iou" min="0.05" max="0.95" step="0.05"><b class="mono" id="v-iou"></b></label>
+        <div class="grid2">
+          <label class="field col"><span>TRACKER</span>
+            <select id="p-tracker"><option value="bytetrack">ByteTrack</option><option value="botsort">BoT-SORT</option></select></label>
+          <label class="field col"><span>IMGSZ</span>
+            <select id="p-imgsz"><option>320</option><option>480</option><option>640</option><option>960</option><option>1280</option></select></label>
+          <label class="field col"><span>ANCHOR</span>
+            <select id="p-anchor"><option value="center">box center</option><option value="bottom">bottom center</option></select></label>
+          <label class="field col check"><input type="checkbox" id="p-realtime"><span>PACE TO SOURCE FPS</span></label>
+        </div>
+        <div class="field col">
+          <span>TARGET CLASSES <em class="dim" id="class-summary">all</em></span>
+          <div class="row">
+            <input type="text" id="class-filter" placeholder="filter / id">
+            <button class="btn tiny" id="btn-cls-none">ALL</button>
+          </div>
+          <div class="class-list mono" id="class-list"><div class="dim small">load a model to list classes</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">PERSIST</div>
+        <label class="field check"><input type="checkbox" id="p-git"><span>AUTO-COMMIT config.yaml TO GIT</span></label>
+        <input type="text" id="commit-msg" placeholder="commit message (optional)">
+        <div class="row"><button class="btn primary" id="btn-save">SAVE CONFIG</button></div>
+        <div class="kv mono small" id="save-result"></div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ============================ EXECUTE ============================ -->
+  <section class="tab-pane" id="tab-execute">
+    <div class="stage">
+      <div class="stage-head">
+        <span>OUTPUT</span>
+        <span class="mono dim" id="run-source">-</span>
+        <span class="spacer"></span>
+        <span class="badge" id="run-state">IDLE</span>
+      </div>
+      <div class="video-wrap">
+        <img id="stream" alt="">
+        <div class="empty" id="stream-empty">ENGINE IDLE &middot; PRESS START</div>
+      </div>
+      <div class="progress" id="run-progress"><i></i></div>
+      <div class="controls">
+        <select id="run-video"></select>
+        <button class="btn primary" id="btn-start">START</button>
+        <button class="btn" id="btn-pause" disabled>PAUSE</button>
+        <button class="btn" id="btn-stop" disabled>STOP</button>
+        <button class="btn" id="btn-reset">RESET COUNTS</button>
+        <span class="spacer"></span>
+        <a class="btn" id="btn-csv" href="/api/run/events.csv" download>EXPORT CSV</a>
+      </div>
+      <div class="error mono hidden" id="run-error"></div>
+    </div>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-head">TELEMETRY</div>
+        <div class="metrics mono">
+          <div><span>FPS</span><b id="m-fps">0.0</b></div>
+          <div><span>INFER</span><b id="m-infer">0 ms</b></div>
+          <div><span>FRAME</span><b id="m-frame">0</b></div>
+          <div><span>TRACKS</span><b id="m-tracks">0</b></div>
+          <div><span>ELAPSED</span><b id="m-elapsed">0s</b></div>
+          <div><span>EVENTS</span><b id="m-events">0</b></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">COUNT</div>
+        <div class="totals mono">
+          <div><span>IN</span><b id="t-in">0</b></div>
+          <div><span>OUT</span><b id="t-out">0</b></div>
+          <div class="hl"><span>TOTAL</span><b id="t-total">0</b></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">CLASS BREAKDOWN</div>
+        <table class="tbl mono"><thead><tr><th>ID</th><th>CLASS</th><th>IN</th><th>OUT</th><th>TOTAL</th></tr></thead>
+          <tbody id="tbl-classes"><tr><td colspan="5" class="dim">-</td></tr></tbody></table>
+      </div>
+      <div class="panel">
+        <div class="panel-head">LINES</div>
+        <table class="tbl mono"><thead><tr><th>LINE</th><th>IN</th><th>OUT</th></tr></thead>
+          <tbody id="tbl-lines"><tr><td colspan="3" class="dim">-</td></tr></tbody></table>
+      </div>
+      <div class="panel grow">
+        <div class="panel-head">EVENT LOG <span class="dim small">latest first</span></div>
+        <div class="log mono" id="event-log"></div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ============================ LIVE (WIP) ============================ -->
+  <section class="tab-pane" id="tab-live">
+    <div class="stage">
+      <div class="stage-head">
+        <span>LIVE INPUT</span>
+        <span class="spacer"></span>
+        <span class="badge warn">NOT IMPLEMENTED</span>
+      </div>
+      <div class="video-wrap"><div class="empty">NO SIGNAL</div></div>
+      <div class="controls">
+        <input type="text" id="live-uri" placeholder="rtsp://user:pass@192.168.1.10:554/stream1  |  0 (webcam)">
+        <button class="btn" id="btn-live-connect" disabled title="live pipeline not implemented">CONNECT STREAM</button>
+        <span class="badge" id="live-validate">-</span>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-head">STATUS</div>
+        <div class="kv mono small" id="live-status">-</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">ARCHITECTURE</div>
+<pre class="mono small arch">
+FrameSource (ABC)          app/sources.py
+ ├─ VideoFileSource        [ready]
+ └─ LiveStreamSource       [stub]  app/live.py
+        │ read()
+        ▼
+Pipeline thread            app/pipeline.py
+ predict → tracker → LineCounter
+        │
+        ├─ FrameBroadcaster → /api/run/stream.mjpg
+        └─ snapshot()       → /ws/telemetry
+</pre>
+      </div>
+      <div class="panel">
+        <div class="panel-head">ROADMAP</div>
+        <ul class="todo mono small">
+          <li>latest-frame grabber thread (drop stale)</li>
+          <li>reconnect w/ exponential backoff</li>
+          <li>wall-clock event timestamps</li>
+          <li>RTSP over TCP / FFmpeg options</li>
+        </ul>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<footer class="statusline mono" id="statusline">ready</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
