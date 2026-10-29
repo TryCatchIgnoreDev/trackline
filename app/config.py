@@ -43,7 +43,6 @@ class EngineConfig(BaseModel):
     anchor: Literal["center", "bottom"] = "center"
     realtime: bool = False  # pace processing to source FPS
     lines: List[Line] = Field(default_factory=list)
-    git_autocommit: bool = False
 
 
 class ConfigStore:

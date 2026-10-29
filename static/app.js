@@ -173,7 +173,6 @@ function bindParams() {
   $("#p-imgsz").value = String(c.imgsz);
   $("#p-anchor").value = c.anchor;
   $("#p-realtime").checked = c.realtime;
-  $("#p-git").checked = c.git_autocommit;
 }
 $("#p-conf").addEventListener("input", (e) => { $("#v-conf").textContent = (+e.target.value).toFixed(2); patchConfig({ conf: +e.target.value }); });
 $("#p-iou").addEventListener("input", (e) => { $("#v-iou").textContent = (+e.target.value).toFixed(2); patchConfig({ iou: +e.target.value }); });
@@ -181,7 +180,6 @@ $("#p-tracker").addEventListener("change", (e) => patchConfig({ tracker: e.targe
 $("#p-imgsz").addEventListener("change", (e) => patchConfig({ imgsz: +e.target.value }));
 $("#p-anchor").addEventListener("change", (e) => patchConfig({ anchor: e.target.value }));
 $("#p-realtime").addEventListener("change", (e) => patchConfig({ realtime: e.target.checked }));
-$("#p-git").addEventListener("change", (e) => patchConfig({ git_autocommit: e.target.checked }));
 
 $("#btn-save").addEventListener("click", async () => {
   const btn = $("#btn-save");
@@ -189,16 +187,9 @@ $("#btn-save").addEventListener("click", async () => {
   const out = $("#save-result");
   try {
     await flushNow();
-    const r = await api("/api/config/save", { method: "POST", json: { commit: S.cfg.git_autocommit, message: $("#commit-msg").value || null } });
-    let txt = `saved ${r.saved}`;
-    if (r.git) {
-      const g = r.git;
-      const cls = g.ok ? "ok" : "err";
-      txt += `\n<span class="${cls}">git ${esc(g.status)}${g.commit ? " " + esc(g.commit) : ""}</span>  ${esc(g.detail || "")}`;
-    }
-    out.innerHTML = txt;
-    $("#commit-msg").value = "";
-    status(r.git && r.git.commit ? `config saved + committed ${r.git.commit}` : "config saved", "ok");
+    const r = await api("/api/config/save", { method: "POST" });
+    out.innerHTML = `<span class="ok">saved</span> ${esc(r.saved)}`;
+    status("config saved to " + r.saved, "ok");
   } catch (e) { out.innerHTML = `<span class="err">${esc(e.message)}</span>`; status(e.message, "err"); }
   finally { btn.disabled = false; }
 });

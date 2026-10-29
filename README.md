@@ -4,7 +4,7 @@ Modular, hot-swappable object counting and tracking engine.
 **Ultralytics YOLO + OpenCV + FastAPI**, with a single-page vanilla JS/Canvas UI.
 
 ```
- STUDIO  ─ pick weights, scrub to any frame, draw counting lines, tune params, save + git commit
+ STUDIO  ─ pick weights, scrub to any frame, draw counting lines, tune params, save config
  EXECUTE ─ tracked MJPEG output, live telemetry over WebSocket, CSV event export
  LIVE    ─ RTSP / webcam placeholder (stubbed backend + UI, ready for expansion)
 ```
@@ -31,7 +31,7 @@ Both folders are rescanned on demand, so you never need to restart.
    Drag on the canvas to draw a line. Drag handles to edit, drag the body to move, `Del` removes the selected line, and **FLIP** swaps the IN/OUT direction (the arrow points to IN).
 2. Select weights in **MODEL**. Loading runs off the event loop; the active model swaps atomically.
 3. Set confidence, IoU, tracker (ByteTrack / BoT-SORT), image size, anchor point and target classes (none checked = all classes).
-4. **SAVE CONFIG** writes `config.yaml`. With *auto-commit* on, it also runs `git commit` on that file only (never pushes).
+4. **SAVE CONFIG** writes `config.yaml` atomically to disk.
 5. **Execute** - press **START**. Edits made in Studio (lines, thresholds, classes, model, tracker) apply on the next frame of the running job.
    **EXPORT CSV** downloads the full crossing log.
 
@@ -47,7 +47,6 @@ app/
   config.py     pydantic schema, thread-safe store, atomic YAML save
   sources.py    FrameSource ABC, VideoFileSource, random-access FrameSeeker
   live.py       LiveStreamSource stub + roadmap
-  gitsync.py    scoped `git commit` of config.yaml
 static/         index.html, app.css, app.js (no framework, no build step)
 ```
 
@@ -56,7 +55,7 @@ static/         index.html, app.css, app.js (no framework, no build step)
 | Work | Where it runs |
 |---|---|
 | Inference, tracking, counting, JPEG encode | dedicated `trackline-pipeline` daemon thread |
-| Model load + warmup, git, config save | `asyncio.to_thread` |
+| Model load + warmup, config save | `asyncio.to_thread` |
 | Frame seeking, uploads, CSV | sync `def` routes (Starlette threadpool) |
 | MJPEG fan-out | `threading.Condition` broadcaster, awaited via `to_thread` with timeout |
 | Telemetry | async WebSocket push at 4 Hz from locked snapshots |
@@ -81,7 +80,7 @@ Trackers (`BYTETracker` / `BOTSORT`) are created directly instead of going throu
 | GET | `/api/models` | scan `models/`, active model state + class names |
 | POST | `/api/models/select` | `{name}` hot-swap weights |
 | GET/PUT | `/api/config` | read / patch live config |
-| POST | `/api/config/save` | `{commit?, message?}` write YAML, optional git commit |
+| POST | `/api/config/save` | write `config.yaml` atomically |
 | GET | `/api/videos` | list `videos/` |
 | POST | `/api/videos/upload` | multipart upload |
 | GET | `/api/videos/{name}/meta` | fps, frames, resolution |

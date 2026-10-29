@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response, Streami
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, gitsync, live
+from . import __version__, live
 from .config import ROOT, VIDEOS_DIR, ConfigStore, Line
 from .models import ModelManager
 from .pipeline import FrameBroadcaster, Pipeline
@@ -77,12 +77,6 @@ class ConfigPatch(BaseModel):
     anchor: Optional[str] = None
     realtime: Optional[bool] = None
     lines: Optional[List[Line]] = None
-    git_autocommit: Optional[bool] = None
-
-
-class SaveRequest(BaseModel):
-    commit: Optional[bool] = None  # defaults to config.git_autocommit
-    message: Optional[str] = None
 
 
 class RunRequest(BaseModel):
@@ -136,17 +130,9 @@ def put_config(patch: ConfigPatch) -> Dict[str, Any]:
 
 
 @app.post("/api/config/save")
-async def save_config(req: SaveRequest) -> Dict[str, Any]:
+async def save_config() -> Dict[str, Any]:
     path = await asyncio.to_thread(config.save)
-    cfg = config.get()
-    result: Dict[str, Any] = {"saved": str(path.name), "git": None}
-    if req.commit if req.commit is not None else cfg.git_autocommit:
-        msg = req.message or (
-            f"config: {len(cfg.lines)} line(s), model={cfg.model}, conf={cfg.conf:.2f} "
-            f"[{datetime.now():%Y-%m-%d %H:%M:%S}]"
-        )
-        result["git"] = await asyncio.to_thread(gitsync.commit_file, path, msg)
-    return result
+    return {"saved": str(path.name)}
 
 
 # ----------------------------------------------------------------- videos
